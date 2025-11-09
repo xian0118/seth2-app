@@ -1,10 +1,10 @@
 {
-  "name": "戰神賽特2｜統一工具",
-  "short_name": "賽特2工具",
+  "name": "戰神賽特2統一工具",
+  "short_name": "Seth2 Tool",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#0b1220",
-  "theme_color": "#0b1220",
+  "background_color": "#0f0f1a",
+  "theme_color": "#0f0f1a",
   "icons": [
     {
       "src": "icon-192.png",
