@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>戰神賽特2｜統一工具（判定＋評分＋注額＋記錄）</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+  :root{--bg:#0b1220;--card:#111827;--ink:#e6eef8;--mut:#94a3b8;--line:#223043;--accent:#7c3aed}
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,Helvetica,Arial; background:var(--bg); color:var(--ink); margin:0;}
+  header{position:sticky; top:0; background:rgba(11,18,32,.9); backdrop-filter:blur(6px); padding:12px 16px; border-bottom:1px solid var(--line); z-index:10}
+  h1{font-size:18px; margin:0}
+  .tabs{display:flex; gap:8px; padding:12px 16px; flex-wrap:wrap}
+  .tab{padding:8px 10px; border:1px solid var(--line); border-radius:10px; cursor:pointer}
+  .tab.active{background:var(--accent); border-color:var(--accent)}
+  .wrap{padding:16px}
+  .card{background:var(--card); border-radius:12px; padding:16px; box-shadow:0 8px 16px rgba(0,0,0,.5); margin-bottom:12px}
+  h2{font-size:16px; margin:0 0 10px 0; color:#d1d5db}
+  label{display:block; font-size:12px; color:#cbd5e1; margin-top:8px}
+  input,select,textarea{width:100%; padding:10px; border-radius:10px; border:1px solid var(--line); background:#081224; color:var(--ink); margin-top:6px}
+  textarea{min-height:80px}
+  button{border:none; padding:10px 12px; border-radius:10px; background:var(--accent); color:#fff; font-weight:600; margin-top:10px; cursor:pointer}
+  .row{display:flex; gap:8px; flex-wrap:wrap}
+  .col{flex:1; min-width:140px}
+  .mono{font-family:Menlo,monospace; background:#0c1b34; padding:2px 6px; border-radius:6px}
+  .small{font-size:12px; color:var(--mut)}
+  table{width:100%; border-collapse:collapse; font-size:12px; margin-top:10px}
+  th,td{border-bottom:1px solid var(--line); padding:6px; text-align:left}
+  .pill{display:inline-block; padding:2px 8px; border-radius:999px; font-weight:700; margin-left:6px}
+  .pillA{background:#0d3b66} .pillB{background:#0a4f2b} .pillC{background:#5b2a00}
+  .good{color:#22c55e} .warn{color:#f59e0b} .bad{color:#ef4444}
+  .mut{color:var(--mut)}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+  @media (max-width:720px){.grid2{grid-template-columns:1fr}}
+</style>
+
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0b1220">
+<link rel="apple-touch-icon" href="icon-192.png">
+</head>
+<body>
+<header>
+  <h1>戰神賽特2｜統一工具（房型判定＋評分＆自動下注＋記錄器）</h1>
+  <div class="small">支援測試模式（A / C）、離線可用、CSV 匯出/匯入、iPhone 可加入主畫面</div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-tab="classify">房型自動判定</div>
+  <div class="tab" data-tab="scoring">評分＋自動下注</div>
+  <div class="tab" data-tab="logger">記錄器</div>
+  <div class="tab" data-tab="lab">測試模式</div>
+</div>
+
+<div class="wrap">
+
+<section id="classify" class="card">
+  <h2>房型自動判定（A/B/C）</h2>
+  <div class="small">輸入「前二 / 前一 / 未開」＋「當日 / 近30天」的下注與得分率，系統判定房型並列出依據。</div>
+
+  <div class="row">
+    <div class="col"><label>前二 下注額</label><input id="cf_bet2" type="number" value="50000"></div>
+    <div class="col"><label>前二 得分率%</label><input id="cf_rtp2" type="number" step="0.01" value="88"></div>
+    <div class="col"><label>前一 下注額</label><input id="cf_bet1" type="number" value="70000"></div>
+    <div class="col"><label>前一 得分率%</label><input id="cf_rtp1" type="number" step="0.01" value="82"></div>
+  </div>
+  <div class="row">
+    <div class="col"><label>未開 下注額（無填0）</label><input id="cf_bet0" type="number" value="0"></div>
+    <div class="col"><label>未開 得分率%（可空）</label><input id="cf_rtp0" type="number" step="0.01"></div>
+    <div class="col"><label>當日 下注額</label><input id="cf_betD" type="number" value="120000"></div>
+    <div class="col"><label>當日 得分率%</label><input id="cf_rtpD" type="number" step="0.01" value="86"></div>
+  </div>
+  <div class="row">
+    <div class="col"><label>近30天 下注額</label><input id="cf_bet30" type="number" value="1100000"></div>
+    <div class="col"><label>近30天 得分率%</label><input id="cf_rtp30" type="number" step="0.01" value="92"></div>
+  </div>
+  <div class="row">
+    <div class="col"><button id="cf_calc">判定房型</button></div>
+    <div class="col"><button id="cf_save">保存判定</button></div>
+    <div class="col"><button id="cf_export">匯出CSV</button></div>
+  </div>
+  <div id="cf_out" style="margin-top:8px"></div>
+  <div class="small mut">註：此處判定偏重 A（快爆）與 C（高爆）的可用性；B（穩定）是中性/保守預設。</div>
+
+  <div class="card" style="margin-top:12px">
+    <h2>已保存的房型判定</h2>
+    <table id="cf_tbl"><thead>
+      <tr><th>#</th><th>前二(投/率)</th><th>前一(投/率)</th><th>未開(投/率)</th><th>當日(投/率)</th><th>30天(投/率)</th><th>房型</th></tr>
+    </thead><tbody></tbody></table>
+  </div>
+</section>
+
+<section id="scoring" class="card" style="display:none">
+  <h2>評分＋自動下注（A/C 強化）</h2>
+  <div class="grid2">
+    <div>
+      <div class="row">
+        <div class="col"><label>本金</label><input id="sc_roll" type="number" value="1000"></div>
+        <div class="col"><label>基準單注</label><input id="sc_base" type="number" value="5"></div>
+        <div class="col"><label>最低下注</label><input id="sc_min" type="number" value="5"></div>
+        <div class="col"><label>最高下注</label><input id="sc_max" type="number" value="50"></div>
+      </div>
+      <div class="row">
+        <div class="col"><label>觀察轉數 N</label><input id="sc_N" type="number" value="200"></div>
+        <div class="col"><label>小獎次數</label><input id="sc_sw" type="number" value="30"></div>
+        <div class="col"><label>死轉次數</label><input id="sc_ds" type="number" value="120"></div>
+      </div>
+
+      <h3 class="small" style="margin-top:10px">填入房間資料</h3>
+      <div class="row">
+        <div class="col"><label>房名</label><input id="sc_name" placeholder="機台935"></div>
+        <div class="col"><label>24h 總投注</label><input id="sc_24" type="number" value="80000"></div>
+        <div class="col"><label>今日得分率%</label><input id="sc_rtpD" type="number" step="0.01" value="86"></div>
+        <div class="col"><label>30天得分率%</label><input id="sc_rtp30" type="number" step="0.01" value="92"></div>
+      </div>
+
+      <div class="row">
+        <div class="col"><label>房型</label>
+          <select id="sc_type">
+            <option value="A">A（快爆）</option>
+            <option value="B" selected>B（穩定）</option>
+            <option value="C">C（高爆）</option>
+          </select>
+        </div>
+        <div class="col"><button id="sc_add">加入清單</button></div>
+        <div class="col"><button id="sc_export">匯出清單</button></div>
+      </div>
+    </div>
+    <div>
+      <div id="sc_summary" class="small mut">加入房間後，系統會顯示評分、下注建議、進/出場建議。</div>
+      <table id="sc_tbl"><thead>
+        <tr><th>#</th><th>房名</th><th>型</th><th>24h投</th><th>RTPd</th><th>小獎率</th><th>死轉率</th><th>分數</th><th>下注</th><th>Entry/Exit</th><th>刪</th></tr>
+      </thead><tbody></tbody></table>
+    </div>
+  </div>
+</section>
+
+<section id="logger" class="card" style="display:none">
+  <h2>記錄器（Session）</h2>
+  <div class="row">
+    <div class="col"><label>時間</label><input id="lg_ts" type="datetime-local"></div>
+    <div class="col"><label>房名/機台</label><input id="lg_room" placeholder="機台935"></div>
+    <div class="col"><label>房型</label>
+      <select id="lg_type"><option>A</option><option selected>B</option><option>C</option></select>
+    </div>
+    <div class="col"><label>單轉下注</label><input id="lg_bet" type="number" value="5"></div>
+  </div>
+  <div class="row">
+    <div class="col"><label>本段轉數</label><input id="lg_spins" type="number" value="100"></div>
+    <div class="col"><label>是否進FG</label>
+      <select id="lg_fg"><option value="0">否</option><option value="1">是</option></select>
+    </div>
+    <div class="col"><label>FG倍數(可空)</label><input id="lg_fgmult" type="number" step="0.1"></div>
+    <div class="col"><label>本段輸贏(元)</label><input id="lg_net" type="number"></div>
+  </div>
+  <div class="row">
+    <div class="col"><label>備註</label><input id="lg_note"></div>
+  </div>
+  <div class="row">
+    <div class="col"><button id="lg_add">新增紀錄</button></div>
+    <div class="col"><button id="lg_export">匯出CSV</button></div>
+    <div class="col"><button id="lg_import_btn">匯入CSV</button><input id="lg_file" type="file" accept=".csv" style="display:none"></div>
+  </div>
+  <div id="lg_summary" class="small"></div>
+
+  <table id="lg_tbl"><thead>
+    <tr><th>#</th><th>時間</th><th>房名</th><th>型</th><th>下注</th><th>轉數</th><th>FG</th><th>FG倍</th><th>輸贏</th><th>備註</th><th>刪</th></tr>
+  </thead><tbody></tbody></table>
+</section>
+
+<section id="lab" class="card" style="display:none">
+  <h2>測試模式（A / C 快速帶入）</h2>
+  <div class="small">一鍵帶入 A / C 典型數據，立即查看房型判定、評分與下注建議。</div>
+  <div class="row">
+    <div class="col"><button id="testA">載入 A（快爆）典型</button></div>
+    <div class="col"><button id="testC">載入 C（高爆）典型</button></div>
+    <div class="col"><button id="runAll">一鍵跑：判定 → 加入清單 → 顯示建議</button></div>
+  </div>
+  <div id="lab_out" style="margin-top:8px"></div>
+</section>
+
+</div>
+
+<script>
+/* ===== Utilities ===== */
+function pad(n){return n<10?("0"+n):n}
+function nowLocalInput(){
+  const d=new Date();
+  return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+"T"+pad(d.getHours())+":"+pad(d.getMinutes());
+}
+function pct(x){return (x*100).toFixed(1)+"%"}
+function toFixed(x, n){return Number(x).toFixed(n)}
+
+function smallWinRate(sw,N){return N>0?sw/N:0}
+function deadSpinRate(ds,N){return N>0?ds/N:0}
+
+function wilsonCI(k,n,z=1.96){
+  if(n<=0) return [0,1];
+  const phat=k/n, z2=z*z, denom=1+z2/n;
+  const center=(phat+z2/(2*n))/denom;
+  const half=(z*Math.sqrt((phat*(1-phat)+z2/(4*n))/n))/denom;
+  return [Math.max(0,center-half), Math.min(1,center+half)];
+}
+
+/* ===== Tabs ===== */
+document.querySelectorAll('.tab').forEach(t=>{
+  t.onclick=()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    const id=t.dataset.tab;
+    document.querySelectorAll('section.card').forEach(s=>s.style.display="none");
+    document.getElementById(id).style.display="";
+  };
+});
+
+/* ===== Classifier (A/B/C) ===== */
+const CF_KEY="unified_cf_samples_v1";
+function cfLoad(){ try{return JSON.parse(localStorage.getItem(CF_KEY)||"[]")}catch(e){return[]} }
+function cfSave(arr){ localStorage.setItem(CF_KEY, JSON.stringify(arr)) }
+function cfVal(id){ const v=document.getElementById(id).value; return v===""?null:Number(v) }
+
+function cfScore(inp){
+  const notes=[]; let A=0,B=0,C=0;
+  function add(t,pts,msg){ if(t==="A")A+=pts; if(t==="B")B+=pts; if(t==="C")C+=pts; notes.push(`${t}+${pts}: ${msg}`) }
+  const {bet2,rtp2,bet1,rtp1,bet0,rtp0,betD,rtpD,bet30,rtp30}=inp;
+
+  if (betD>0 && betD<=150000){ add("A",6,"當日投注≤15萬"); add("B",6,"當日投注≤15萬"); add("C",8,"當日投注≤15萬"); }
+  else if (betD>150000){ add("B",4,"當日偏熱"); add("A",-2,"快爆降低"); add("C",-3,"高爆降低"); }
+
+  if (rtpD>=80 && rtpD<=90){ add("A",8,"RTP 80-90"); add("B",10,"RTP 80-90"); add("C",6,"RTP 80-90"); }
+  else if (rtpD<80){ add("C",10,"RTP<80 深冷"); add("A",2,"快補機率提升"); add("B",-4,"不穩"); }
+  else if (rtpD>100){ add("A",-5,"RTP>100 疑似剛爆"); add("C",-6,"高爆空間小"); add("B",3,"回歸穩定"); }
+  else { add("B",4,"RTP 90-100 偏穩"); }
+
+  if (rtp30!=null){
+    if (rtp30<=90){ add("C",10,"30天 RTP≤90"); add("A",5,"長期偏低，快補潛力"); }
+    else if (rtp30<=100){ add("B",6,"30天正常"); }
+    else { add("B",-2,"30天偏高"); add("A",-2,"快爆減少"); add("C",-3,"高爆下降"); }
+  }
+
+  if (rtp2!=null && rtp1!=null){
+    const betUp=bet1>bet2*1.1;
+    const rtpDown=rtp1<rtp2-2;
+    const rtpUp=rtp1>rtp2+2;
+    if (betUp&&rtpDown){ add("C",10,"下注↑ & RTP↓ 蓄壓"); }
+    if (rtpUp&&rtp1<=95){ add("A",8,"RTP回升未過熱 快爆窗口"); }
+  }
+  if (rtp0!=null){
+    if (rtp0>=80&&rtp0<=90){ add("A",6,"未開80-90"); add("B",6,"未開80-90"); }
+    else if (rtp0<75){ add("C",6,"未開<75"); }
+  }
+  if (bet30>0){
+    const ratio=betD/bet30;
+    if (ratio>=0.20){ add("B",5,"量能偏熱"); add("A",-2,"A風險↑"); add("C",-3,"C儲壓不足"); }
+    else if (ratio<=0.05){ add("C",4,"量能偏冷 C潛力"); }
+  }
+  const scores=[{type:"A",score:Math.round(A)},{type:"B",score:Math.round(B)},{type:"C",score:Math.round(C)}].sort((a,b)=>b.score-a.score);
+  return {scores, notes};
+}
+
+function cfCalc(show=true){
+  const inp={
+    bet2:cfVal("cf_bet2"), rtp2:cfVal("cf_rtp2"),
+    bet1:cfVal("cf_bet1"), rtp1:cfVal("cf_rtp1"),
+    bet0:cfVal("cf_bet0"), rtp0:cfVal("cf_rtp0"),
+    betD:cfVal("cf_betD"), rtpD:cfVal("cf_rtpD"),
+    bet30:cfVal("cf_bet30"), rtp30:cfVal("cf_rtp30")
+  };
+  const {scores,notes}=cfScore(inp);
+  const best=scores[0]; const pill=best.type==="A"?"<span class='pill pillA'>A</span>":(best.type==="B"?"<span class='pill pillB'>B</span>":"<span class='pill pillC'>C</span>");
+  if (show){
+    let html=`<div>房型：${pill} 分數 <span class="mono">${best.score}</span>（次：${scores[1].type} ${scores[1].score}；三：${scores[2].type} ${scores[2].score}）</div>`;
+    html+=`<div style="margin-top:6px" class="small"><b>依據：</b><ul>`;
+    for(const n of notes){ html+=`<li>${n}</li>`; }
+    html+=`</ul></div>`;
+    document.getElementById("cf_out").innerHTML=html;
+  }
+  return {inp,scores,notes};
+}
+
+function cfRenderTbl(){
+  const arr=cfLoad(); const tb=document.querySelector("#cf_tbl tbody"); tb.innerHTML="";
+  let i=1;
+  for(const r of arr){
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${i++}</td>
+      <td>${r.bet2}/${r.rtp2}%</td>
+      <td>${r.bet1}/${r.rtp1}%</td>
+      <td>${r.bet0}/${r.rtp0??""}%</td>
+      <td>${r.betD}/${r.rtpD}%</td>
+      <td>${r.bet30}/${r.rtp30}%</td>
+      <td>${r.decided}</td>`;
+    tb.appendChild(tr);
+  }
+}
+document.getElementById("cf_calc").onclick=()=>cfCalc(true);
+document.getElementById("cf_save").onclick=()=>{
+  const res=cfCalc(true);
+  const arr=cfLoad(); arr.push({**res.inp, decided:res.scores[0].type, scores:res.scores.map(s=>s.type+":"+s.score).join("|")}); cfSave(arr); cfRenderTbl();
+};
+document.getElementById("cf_export").onclick=()=>{
+  const arr=cfLoad();
+  const header=["bet2","rtp2","bet1","rtp1","bet0","rtp0","betD","rtpD","bet30","rtp30","decided","scores"];
+  const rows=[header.join(",")];
+  for(const r of arr){ rows.push(header.map(h=>(r[h]??"")).join(",")); }
+  const blob=new Blob([rows.join("\n")],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="classified_rooms.csv"; a.click();
+};
+cfRenderTbl();
+
+/* ===== Scoring + Auto Bet ===== */
+const SC_KEY="unified_sc_rooms_v1";
+function scLoad(){ try{return JSON.parse(localStorage.getItem(SC_KEY)||"[]")}catch(e){return[]} }
+function scSave(arr){ localStorage.setItem(SC_KEY, JSON.stringify(arr)) }
+
+function scScoreRoom(r){
+  let score=0;
+  if (r.bet24<=150000) score+=20; else score-=Math.min(20, Math.floor((r.bet24-150000)/75000)*5);
+  if (r.rtpD>=80&&r.rtpD<=90) score+=25;
+  else if (r.rtpD>90&&r.rtpD<=100) score+=10;
+  else if (r.rtpD>70&&r.rtpD<80) score+=5;
+  else if (r.rtpD<70||r.rtpD>110) score-=15;
+  const sw=smallWinRate(r.sw,r.N);
+  if (sw>=0.20) score+=20;
+  else if (sw>=0.12) score+=10;
+  else if (sw>=0.08) score+=5;
+  else score-=10;
+  const ds=deadSpinRate(r.ds,r.N);
+  if (ds>=0.70) score-=20;
+  else if (ds>=0.55) score-=10;
+  else if (ds<=0.35) score+=10;
+  if (r.type==="B") score+=5;
+  if (r.type==="A") score+=3;
+  return Math.round(score);
+}
+
+function scBetAdvice(r, bankroll, base, minB, maxB){
+  const sw=smallWinRate(r.sw,r.N), ds=deadSpinRate(r.ds,r.N), score=scScoreRoom(r);
+  let mult=1.0;
+  if (r.type==="B"){ mult=1.0; if (score>=40) mult=1.2; }
+  if (r.type==="A"){ mult=1.2; if (score>=40) mult=1.4; }
+  if (r.type==="C"){ mult=1.35; if (score>=40) mult=1.65; }
+  if (ds>0.6) mult*=0.7;
+  if (sw>0.18) mult*=1.15;
+  // Fine-tune for A/C precision using RTP bands
+  if (r.type!=="B"){
+    if (r.rtpD>=82 && r.rtpD<=88) mult*=1.1;       // sweet spot tweak
+    if (r.rtpD>100) mult*=0.8;                      // cool off after big pay
+    if (r.rtp30<=90 && r.type==="C") mult*=1.08;    // long-term cold → C boost
+  }
+  const targetSpins=150;
+  const capByRoll=Math.max(minB, Math.floor((bankroll/3)/targetSpins));
+  let bet=Math.max(minB, Math.min(maxB, Math.max(capByRoll, Math.floor(base*mult))));
+  const entry=(r.rtpD>=78&&r.rtpD<=95)&&(ds<=0.6);
+  let exit=false; if (ds>0.7||r.rtpD>105) exit=true;
+  return {bet, mult:mult.toFixed(2), score, entry, exit, sw, ds};
+}
+
+function scRender(){
+  const arr=scLoad(); const tb=document.querySelector("#sc_tbl tbody"); tb.innerHTML="";
+  const bankroll=Number(document.getElementById("sc_roll").value)||0;
+  const base=Number(document.getElementById("sc_base").value)||1;
+  const minB=Number(document.getElementById("sc_min").value)||1;
+  const maxB=Number(document.getElementById("sc_max").value)||999999;
+  let i=1;
+  for(const r of arr){
+    const adv=scBetAdvice(r,bankroll,base,minB,maxB);
+    const tr=document.createElement("tr");
+    const pill=r.type==="A"?"<span class='pill pillA'>A</span>":(r.type==="B"?"<span class='pill pillB'>B</span>":"<span class='pill pillC'>C</span>");
+    tr.innerHTML=`<td>${i++}</td>
+      <td>${r.name}</td>
+      <td>${pill}</td>
+      <td>${r.bet24.toLocaleString()}</td>
+      <td>${r.rtpD.toFixed(1)}%</td>
+      <td>${pct(adv.sw)}</td>
+      <td>${pct(adv.ds)}</td>
+      <td><span class="mono">${adv.score}</span></td>
+      <td><span class="mono">${adv.bet}</span>（x${adv.mult}）</td>
+      <td>${adv.entry?'<span class="good">可進場</span>':'<span class="warn">觀望</span>'} / ${adv.exit?'<span class="bad">建議離場</span>':'持續觀察'}</td>
+      <td><button class="del" data-id="${r.id}">刪</button></td>`;
+    tb.appendChild(tr);
+  }
+  document.querySelectorAll("#sc_tbl button.del").forEach(b=>{
+    b.onclick=()=>{ const id=b.dataset.id; const out=scLoad().filter(x=>x.id!==id); scSave(out); scRender(); };
+  });
+  document.getElementById("sc_summary").innerHTML=`已加入 <span class="mono">${arr.length}</span> 房；建議本金分配：最高分 50%、次高 30%、第三 20%。`;
+}
+
+document.getElementById("sc_add").onclick=()=>{
+  const r={
+    id:String(Date.now())+String(Math.random()).slice(2,8),
+    name:document.getElementById("sc_name").value||("房-"+Math.random().toString(36).slice(2,6)),
+    bet24:Number(document.getElementById("sc_24").value)||0,
+    rtpD:Number(document.getElementById("sc_rtpD").value)||0,
+    rtp30:Number(document.getElementById("sc_rtp30").value)||0,
+    N:Number(document.getElementById("sc_N").value)||0,
+    sw:Number(document.getElementById("sc_sw").value)||0,
+    ds:Number(document.getElementById("sc_ds").value)||0,
+    type:document.getElementById("sc_type").value
+  };
+  const arr=scLoad(); arr.push(r); scSave(arr); scRender();
+};
+document.getElementById("sc_export").onclick=()=>{
+  const arr=scLoad(); const header=["name","type","bet24","rtpD","rtp30","N","sw","ds"];
+  const rows=[header.join(",")]; for(const r of arr){ rows.push(header.map(h=>r[h]).join(",")); }
+  const blob=new Blob([rows.join("\n")],{type:"text/csv;charset=utf-8"}); const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download="rooms_scored.csv"; a.click();
+};
+["sc_roll","sc_base","sc_min","sc_max"].forEach(id=>document.getElementById(id).addEventListener("change", scRender));
+scRender();
+
+/* ===== Logger ===== */
+const LG_KEY="unified_lg_sessions_v1";
+function lgLoad(){ try{return JSON.parse(localStorage.getItem(LG_KEY)||"[]")}catch(e){return[]} }
+function lgSave(arr){ localStorage.setItem(LG_KEY, JSON.stringify(arr)) }
+function lgRender(){
+  const arr=lgLoad(); const tb=document.querySelector("#lg_tbl tbody"); tb.innerHTML="";
+  let fg=0, spins=0, net=0; let fgMults=[];
+  arr.forEach((r,i)=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${i+1}</td><td>${new Date(r.ts).toLocaleString()}</td><td>${r.room}</td><td>${r.type}</td><td>${r.bet}</td><td>${r.spins}</td><td>${r.fg?"是":"否"}</td><td>${r.fgmult??""}</td><td>${r.net??""}</td><td>${r.note??""}</td><td><button class="del" data-i="${i}">刪</button></td>`;
+    tb.appendChild(tr);
+    if (r.fg) fg++;
+    spins+=Number(r.spins||0);
+    net+=Number(r.net||0);
+    if (r.fgmult!=null) fgMults.push(Number(r.fgmult));
+  });
+  const p=spins>0?fg/spins:0; const ci=wilsonCI(fg,spins,1.96);
+  let txt=`段數 <span class="mono">${arr.length}</span>；累計轉數 <span class="mono">${spins}</span>；FG次數 <span class="mono">${fg}</span>；單轉FG率 <span class="mono">${(p*100).toFixed(3)}%</span>（95%CI ${(ci[0]*100).toFixed(3)}% ~ ${(ci[1]*100).toFixed(3)}%）；累積輸贏 <span class="mono">${net}</span> 元。`;
+  if (fgMults.length){ const avg=fgMults.reduce((a,b)=>a+b,0)/fgMults.length; txt+=` 平均FG倍數 <span class="mono">${avg.toFixed(2)}x</span>`; }
+  document.getElementById("lg_summary").innerHTML=txt;
+  document.querySelectorAll("#lg_tbl button.del").forEach(b=>{
+    b.onclick=()=>{ const i=Number(b.dataset.i); const out=lgLoad(); out.splice(i,1); lgSave(out); lgRender(); };
+  });
+}
+document.getElementById("lg_add").onclick=()=>{
+  const r={
+    ts: document.getElementById("lg_ts").value? new Date(document.getElementById("lg_ts").value).toISOString(): new Date().toISOString(),
+    room: document.getElementById("lg_room").value||"",
+    type: document.getElementById("lg_type").value||"B",
+    bet: Number(document.getElementById("lg_bet").value)||0,
+    spins: Number(document.getElementById("lg_spins").value)||0,
+    fg: document.getElementById("lg_fg").value==="1",
+    fgmult: document.getElementById("lg_fgmult").value? Number(document.getElementById("lg_fgmult").value): null,
+    net: document.getElementById("lg_net").value? Number(document.getElementById("lg_net").value): null,
+    note: document.getElementById("lg_note").value||null
+  };
+  const arr=lgLoad(); arr.push(r); lgSave(arr); lgRender();
+};
+document.getElementById("lg_export").onclick=()=>{
+  const arr=lgLoad();
+  const header=["ts","room","type","bet","spins","fg","fgmult","net","note"];
+  const rows=[header.join(",")]; for(const r of arr){ rows.push([r.ts,r.room,r.type,r.bet,r.spins,(r.fg?1:0),r.fgmult??"",r.net??"", (r.note??"").replace(/,/g," ")].join(",")); }
+  const blob=new Blob([rows.join("\n")],{type:"text/csv;charset=utf-8"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="seth2_sessions.csv"; a.click();
+};
+document.getElementById("lg_import_btn").onclick=()=>document.getElementById("lg_file").click();
+document.getElementById("lg_file").addEventListener("change",(ev)=>{
+  const f=ev.target.files[0]; if(!f) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    const lines=String(reader.result).split(/\r?\n/).filter(Boolean);
+    const header=lines[0].split(",");
+    const idx=Object.fromEntries(header.map((h,i)=>[h,i]));
+    const arr=[];
+    for(let i=1;i<lines.length;i++){
+      const c=lines[i].split(",");
+      arr.push({
+        ts:c[idx.ts], room:c[idx.room], type:c[idx.type],
+        bet:Number(c[idx.bet]||0), spins:Number(c[idx.spins]||0),
+        fg:(c[idx.fg]||"0").trim()=="1",
+        fgmult: c[idx.fgmult]? Number(c[idx.fgmult]) : null,
+        net: c[idx.net]? Number(c[idx.net]) : null,
+        note: c[idx.note]||null
+      });
+    }
+    lgSave(arr); lgRender();
+  };
+  reader.readAsText(f);
+});
+document.getElementById("lg_ts").value=nowLocalInput();
+lgRender();
+
+/* ===== Lab (test presets) ===== */
+function loadPresetA(){
+  document.getElementById("cf_bet2").value=60000;
+  document.getElementById("cf_rtp2").value=86;
+  document.getElementById("cf_bet1").value=80000;
+  document.getElementById("cf_rtp1").value=92;
+  document.getElementById("cf_bet0").value=0;
+  document.getElementById("cf_rtp0").value="";
+  document.getElementById("cf_betD").value=90000;
+  document.getElementById("cf_rtpD").value=86;
+  document.getElementById("cf_bet30").value=900000;
+  document.getElementById("cf_rtp30").value=94;
+
+  document.getElementById("sc_name").value="測試A";
+  document.getElementById("sc_24").value=90000;
+  document.getElementById("sc_rtpD").value=86;
+  document.getElementById("sc_rtp30").value=94;
+  document.getElementById("sc_N").value=200;
+  document.getElementById("sc_sw").value=36;
+  document.getElementById("sc_ds").value=100;
+  document.getElementById("sc_type").value="A";
+}
+function loadPresetC(){
+  document.getElementById("cf_bet2").value=80000;
+  document.getElementById("cf_rtp2").value=90;
+  document.getElementById("cf_bet1").value=100000;
+  document.getElementById("cf_rtp1").value=78;
+  document.getElementById("cf_bet0").value=0;
+  document.getElementById("cf_rtp0").value="";
+  document.getElementById("cf_betD").value=120000;
+  document.getElementById("cf_rtpD").value=83;
+  document.getElementById("cf_bet30").value=1100000;
+  document.getElementById("cf_rtp30").value=88;
+
+  document.getElementById("sc_name").value="測試C";
+  document.getElementById("sc_24").value=120000;
+  document.getElementById("sc_rtpD").value=83;
+  document.getElementById("sc_rtp30").value=88;
+  document.getElementById("sc_N").value=200;
+  document.getElementById("sc_sw").value=22;
+  document.getElementById("sc_ds").value=140;
+  document.getElementById("sc_type").value="C";
+}
+document.getElementById("testA").onclick=()=>{ loadPresetA(); document.querySelector('[data-tab="classify"]').click(); document.getElementById("cf_calc").click(); }
+document.getElementById("testC").onclick=()=>{ loadPresetC(); document.querySelector('[data-tab="classify"]').click(); document.getElementById("cf_calc").click(); }
+document.getElementById("runAll").onclick=()=>{
+  // 判定
+  const res=cfCalc(true);
+  // 房型帶入評分清單
+  document.getElementById("sc_name").value = (res.scores[0].type==="A")?"測試A":"測試C";
+  document.getElementById("sc_type").value = res.scores[0].type;
+  document.getElementById("sc_24").value = document.getElementById("cf_betD").value;
+  document.getElementById("sc_rtpD").value = document.getElementById("cf_rtpD").value;
+  document.getElementById("sc_rtp30").value = document.getElementById("cf_rtp30").value;
+  // 假設觀察 N 與小獎/死轉
+  if (res.scores[0].type==="A"){ loadPresetA(); } else { loadPresetC(); }
+  document.querySelector('[data-tab="scoring"]').click();
+  document.getElementById("sc_add").click();
+};
+
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(e=>console.log('SW reg failed', e));
+  });
+}
+</script>
+
+</body>
+</html>
